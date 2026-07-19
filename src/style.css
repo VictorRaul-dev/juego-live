@@ -1,0 +1,118 @@
+:root {
+  --vaca-purple: #2b1055;
+  --vaca-purple-2: #7b2ff7;
+  --vaca-pink: #ff5db1;
+  --vaca-blue: #4dd0ff;
+  --vaca-gold: #ffcc33;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #050014;
+  color: #fff;
+  font-family: 'Trebuchet MS', 'Segoe UI', system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+#game-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 20%, #3a1a6e 0%, #1a0838 55%, #050014 100%);
+}
+
+canvas {
+  display: block;
+  touch-action: none;
+}
+
+/* Loading splash shown before Phaser boots */
+#loading-splash {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  animation: fadein 0.4s ease;
+}
+
+.splash-logo {
+  font-size: 64px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  color: #fff;
+  text-shadow:
+    0 0 18px var(--vaca-pink),
+    0 4px 0 var(--vaca-purple-2);
+}
+
+.splash-sub {
+  font-size: 18px;
+  letter-spacing: 3px;
+  color: var(--vaca-pink);
+  text-transform: uppercase;
+}
+
+.splash-bar {
+  margin-top: 18px;
+  width: 220px;
+  height: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.splash-bar span {
+  display: block;
+  height: 100%;
+  width: 40%;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--vaca-pink), var(--vaca-blue));
+  animation: slide 1s ease-in-out infinite;
+}
+
+#rotate-hint {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  font-size: 20px;
+  background: rgba(5, 0, 20, 0.95);
+  z-index: 50;
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

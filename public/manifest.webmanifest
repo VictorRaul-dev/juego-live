@@ -1,0 +1,20 @@
+{
+  "name": "VACA - Aventura Sin Límites",
+  "short_name": "VACA",
+  "description": "Endless runner: la perrita VACA recorre la ciudad en su scooter rosado.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#140630",
+  "theme_color": "#2b1055",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
