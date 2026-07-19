@@ -46,6 +46,9 @@ export class GameScene extends Phaser.Scene {
   private targetMetres = Infinity;
   private running = false;
   private invuln = 0;
+  private levelCompleted = false;
+  private levelResultRecorded = false;
+  private completedStars = 0;
   private rainEmitter?: Phaser.GameObjects.Particles.ParticleEmitter;
 
   // HUD
@@ -95,6 +98,9 @@ export class GameScene extends Phaser.Scene {
     this.totalPixels = 0;
     this.invuln = 0;
     this.running = true;
+    this.levelCompleted = false;
+    this.levelResultRecorded = false;
+    this.completedStars = 0;
 
     this.buildBackground();
     this.roadFx = this.add.graphics();
@@ -306,10 +312,54 @@ export class GameScene extends Phaser.Scene {
     // Audio intensity tracks speed.
     this.audio.setIntensity((speed - BASE_SPEED) / (MAX_SPEED - BASE_SPEED));
 
-    // Finite level completion.
-    if (metres >= this.targetMetres) {
-      this.finishRun(true);
+    // Finite level objective reached: mark complete, unlock the next level and
+    // keep running (endless continuation) instead of ending the run abruptly.
+    if (!this.levelCompleted && metres >= this.targetMetres) {
+      this.onLevelComplete();
     }
+  }
+
+  private onLevelComplete(): void {
+    this.levelCompleted = true;
+
+    // Evaluate stars at the moment of completion (before any later crash).
+    let stars = 1; // reaching the target earns the first star
+    if (this.stats.coins >= 50) stars++;
+    if (!this.stats.hit) stars++;
+    this.completedStars = stars;
+
+    if (this.levelId <= 9) {
+      this.gs.recordLevelResult(this.levelId, this.stats.distance, stars);
+      this.levelResultRecorded = true;
+      this.gs.persist();
+    }
+
+    this.audio.play('record');
+    this.player.celebrate();
+    this.showToast('¡Nivel completado! Sigue para más puntos');
+  }
+
+  private showToast(msg: string): void {
+    const txt = this.add
+      .text(GAME_WIDTH / 2, GAME_HEIGHT * 0.42, msg, {
+        fontFamily: 'Trebuchet MS',
+        fontSize: '46px',
+        color: '#39ff14',
+        fontStyle: 'bold',
+        align: 'center',
+        stroke: '#0a3a0a',
+        strokeThickness: 6,
+      })
+      .setOrigin(0.5)
+      .setDepth(45);
+    this.tweens.add({
+      targets: txt,
+      y: GAME_HEIGHT * 0.36,
+      alpha: 0,
+      duration: 2200,
+      ease: 'Quad.out',
+      onComplete: () => txt.destroy(),
+    });
   }
 
   private generateAhead(): void {
@@ -496,12 +546,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---- End of run ---------------------------------------------------------
-  private finishRun(win: boolean): void {
+  // Called when VACA crashes. Finite levels may already be flagged complete
+  // (the player kept running past the objective for a higher score).
+  private finishRun(_win: boolean): void {
     if (!this.running) return;
     this.running = false;
     this.input2.setEnabled(false);
     this.audio.stopMusic();
 
+    const win = this.levelCompleted;
     const metres = this.stats.distance;
     const finalScore = this.score.score;
 
@@ -514,11 +567,12 @@ export class GameScene extends Phaser.Scene {
     if (newRecord) this.gs.save.bestDistance = metres;
     if (finalScore > this.gs.save.bestScore) this.gs.save.bestScore = finalScore;
 
-    // Stars for finite levels.
-    let stars = 0;
-    if (this.levelId <= 9) {
-      const level = getLevel(this.levelId);
-      if (win || metres >= level.targetDistance) stars++;
+    // Stars for finite levels. If the objective was reached mid-run it was
+    // already recorded in onLevelComplete(); otherwise record what was earned.
+    let stars = this.completedStars;
+    if (this.levelId <= 9 && !this.levelResultRecorded) {
+      stars = 0;
+      if (metres >= this.targetMetres) stars++;
       if (this.stats.coins >= 50) stars++;
       if (!this.stats.hit) stars++;
       this.gs.recordLevelResult(this.levelId, metres, stars);
