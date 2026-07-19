@@ -44,6 +44,13 @@ export class TextureFactory {
       'slow-motion',
     ];
     powerTypes.forEach((p) => TextureFactory.powerUp(scene, p));
+
+    // Atmosphere / lighting helpers (soft gradients via canvas).
+    TextureFactory.softShadow(scene);
+    TextureFactory.vignette(scene);
+    TextureFactory.headlight(scene);
+    TextureFactory.glow(scene);
+    TextureFactory.buildingStrip(scene);
   }
 
   private static make(
@@ -58,6 +65,111 @@ export class TextureFactory {
     draw(g);
     g.generateTexture(key, w, h);
     g.destroy();
+  }
+
+  /** Canvas-based texture for true soft gradients (shadows, glows, vignette). */
+  private static makeCanvas(
+    scene: Phaser.Scene,
+    key: string,
+    w: number,
+    h: number,
+    draw: (ctx: CanvasRenderingContext2D, w: number, h: number) => void,
+  ): void {
+    if (scene.textures.exists(key)) return;
+    const tex = scene.textures.createCanvas(key, w, h);
+    if (!tex) return;
+    const ctx = tex.getContext();
+    draw(ctx, w, h);
+    tex.refresh();
+  }
+
+  /** Soft elliptical drop shadow used to ground characters and obstacles. */
+  static softShadow(scene: Phaser.Scene): void {
+    TextureFactory.makeCanvas(scene, 'soft-shadow', 220, 110, (ctx, w, h) => {
+      const grad = ctx.createRadialGradient(w / 2, h / 2, 4, w / 2, h / 2, w / 2);
+      grad.addColorStop(0, 'rgba(0,0,0,0.55)');
+      grad.addColorStop(0.6, 'rgba(0,0,0,0.28)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.save();
+      ctx.translate(w / 2, h / 2);
+      ctx.scale(1, h / w);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(0, 0, w / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  /** Cinematic vignette: transparent centre fading to dark corners. */
+  static vignette(scene: Phaser.Scene): void {
+    TextureFactory.makeCanvas(scene, 'vignette', 540, 960, (ctx, w, h) => {
+      const grad = ctx.createRadialGradient(
+        w / 2,
+        h * 0.46,
+        h * 0.28,
+        w / 2,
+        h * 0.5,
+        h * 0.72,
+      );
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.55)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    });
+  }
+
+  /** Warm headlight cone that projects forward from the scooter. */
+  static headlight(scene: Phaser.Scene): void {
+    TextureFactory.makeCanvas(scene, 'headlight', 360, 520, (ctx, w, h) => {
+      const grad = ctx.createLinearGradient(0, h, 0, 0);
+      grad.addColorStop(0, 'rgba(255,244,200,0.55)');
+      grad.addColorStop(1, 'rgba(255,244,200,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(w / 2 - 40, h); // narrow at the scooter
+      ctx.lineTo(w / 2 + 40, h);
+      ctx.lineTo(w, 0); // wide, far away
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+      ctx.fill();
+    });
+  }
+
+  /** Soft radial glow sprite for coins/power-ups. */
+  static glow(scene: Phaser.Scene): void {
+    TextureFactory.makeCanvas(scene, 'glow', 128, 128, (ctx, w, h) => {
+      const grad = ctx.createRadialGradient(w / 2, h / 2, 2, w / 2, h / 2, w / 2);
+      grad.addColorStop(0, 'rgba(255,255,255,0.9)');
+      grad.addColorStop(0.4, 'rgba(255,255,255,0.35)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    });
+  }
+
+  /** Horizontally-tileable white building silhouette strip (tinted per theme). */
+  static buildingStrip(scene: Phaser.Scene): void {
+    TextureFactory.makeCanvas(scene, 'bg-buildings', 540, 300, (ctx, w, h) => {
+      ctx.fillStyle = '#ffffff';
+      let x = 0;
+      let i = 0;
+      while (x < w) {
+        const bw = 40 + ((i * 37) % 60);
+        const bh = 90 + ((i * 53) % 170);
+        ctx.fillRect(x, h - bh, bw - 6, bh);
+        // a few windows for texture
+        ctx.fillStyle = 'rgba(0,0,0,0.12)';
+        for (let wy = h - bh + 14; wy < h - 10; wy += 26) {
+          for (let wx = x + 8; wx < x + bw - 14; wx += 18) {
+            ctx.fillRect(wx, wy, 8, 12);
+          }
+        }
+        ctx.fillStyle = '#ffffff';
+        x += bw;
+        i++;
+      }
+    });
   }
 
   /** VACA the dog riding a pink scooter. `sliding` gives a crouched pose. */

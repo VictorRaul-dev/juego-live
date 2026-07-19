@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import type { CollectibleType, PowerUpType } from '../core/types';
-import { GAME_HEIGHT, LANE_X, MAGNET_RADIUS } from '../config/GameConfig';
+import { GAME_HEIGHT, MAGNET_RADIUS } from '../config/GameConfig';
 import { ImagePool } from '../utils/Pool';
+import { aboveHorizon, depthScale, laneXAt } from '../utils/Perspective';
 
 export type PickupKind = CollectibleType | 'power';
 
@@ -10,6 +11,8 @@ export interface ActivePickup {
   kind: PickupKind;
   lane: number;
   powerType?: PowerUpType;
+  baseScale: number;
+  pulled: boolean;
 }
 
 /**
@@ -28,41 +31,38 @@ export class CollectibleManager {
 
   spawnCollectible(kind: CollectibleType, lane: number, y: number, elevated = false): void {
     const texture = kind === 'coin' ? 'coin' : kind === 'bone' ? 'bone' : 'key';
-    const img = this.pool.obtain(texture, LANE_X[lane], y - (elevated ? 120 : 0));
-    img.setOrigin(0.5);
-    this.scene.tweens.add({
-      targets: img,
-      angle: 360,
-      duration: 1400,
-      repeat: -1,
-    });
-    this.active.push({ image: img, kind, lane });
+    const yy = y - (elevated ? 120 : 0);
+    const img = this.pool.obtain(texture, laneXAt(lane, yy), yy);
+    img.setOrigin(0.5).setScale(depthScale(yy)).setVisible(!aboveHorizon(yy));
+    this.scene.tweens.add({ targets: img, angle: 360, duration: 1400, repeat: -1 });
+    this.active.push({ image: img, kind, lane, baseScale: 1, pulled: false });
   }
 
   spawnPower(type: PowerUpType, lane: number, y: number): void {
-    const img = this.pool.obtain(`pu-${type}`, LANE_X[lane], y);
-    img.setOrigin(0.5).setScale(1.2);
-    this.scene.tweens.add({
-      targets: img,
-      scale: 1.4,
-      duration: 600,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.inOut',
-    });
-    this.active.push({ image: img, kind: 'power', lane, powerType: type });
+    const img = this.pool.obtain(`pu-${type}`, laneXAt(lane, y), y);
+    img.setOrigin(0.5).setScale(depthScale(y, 1.25)).setVisible(!aboveHorizon(y));
+    this.active.push({ image: img, kind: 'power', lane, powerType: type, baseScale: 1.25, pulled: false });
   }
 
   update(dy: number, magnetOn: boolean, playerX: number, playerY: number): void {
     for (const p of this.active) {
       p.image.y += dy;
-      if (magnetOn && (p.kind === 'coin' || p.kind === 'bone')) {
-        const dist = Phaser.Math.Distance.Between(p.image.x, p.image.y, playerX, playerY);
-        if (dist < MAGNET_RADIUS * 2.2 && p.image.y < playerY + 100) {
-          p.image.x = Phaser.Math.Linear(p.image.x, playerX, 0.2);
-          p.image.y = Phaser.Math.Linear(p.image.y, playerY, 0.2);
-        }
+      const magnetic = magnetOn && (p.kind === 'coin' || p.kind === 'bone');
+      if (
+        magnetic &&
+        p.image.y < playerY + 100 &&
+        Phaser.Math.Distance.Between(p.image.x, p.image.y, playerX, playerY) < MAGNET_RADIUS * 2.2
+      ) {
+        // Magnet overrides perspective positioning and pulls toward the player.
+        p.pulled = true;
+        p.image.x = Phaser.Math.Linear(p.image.x, playerX, 0.2);
+        p.image.y = Phaser.Math.Linear(p.image.y, playerY, 0.2);
+      } else {
+        p.image.x = laneXAt(p.lane, p.image.y);
       }
+      p.image.setScale(depthScale(p.image.y, p.baseScale));
+      p.image.setVisible(!aboveHorizon(p.image.y));
+      p.image.setDepth(Math.floor(p.image.y) + 1);
     }
     this.active = this.active.filter((p) => {
       if (p.image.y > GAME_HEIGHT + 120) {
@@ -93,5 +93,3 @@ export class CollectibleManager {
     this.active = [];
   }
 }
-
-export { LANE_X };

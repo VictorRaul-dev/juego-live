@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config/GameConfig';
 import { TextureFactory } from '../utils/TextureFactory';
+import { REAL_IMAGES } from '../data/assetManifest';
 
 /**
  * Generates all procedural textures and shows a loading bar. Real image/audio
@@ -48,12 +49,19 @@ export class PreloadScene extends Phaser.Scene {
       console.error('Error al cargar recurso:', file.key);
     });
 
-    // No external files in this build — trigger one no-op tick so the loader
-    // still emits complete. Textures are generated in create().
+    // Load any real art assets declared in the manifest. Paths are prefixed
+    // with the Vite base URL so they resolve correctly under the GitHub Pages
+    // sub-path. Anything not listed falls back to procedural textures.
+    const base = import.meta.env.BASE_URL;
+    REAL_IMAGES.forEach((a) => this.load.image(a.key, `${base}assets/images/${a.file}`));
+
+    // Always queue one no-op so the loader completes even with an empty manifest.
     this.load.image('__noop', createNoopDataUri());
   }
 
   create(): void {
+    // Generate procedural textures for every key that a real image did NOT
+    // already provide (TextureFactory skips keys that already exist).
     TextureFactory.generateAll(this);
     // Remove the placeholder loader texture.
     if (this.textures.exists('__noop')) this.textures.remove('__noop');

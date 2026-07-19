@@ -3,10 +3,17 @@ import {
   BASE_SPEED,
   GAME_HEIGHT,
   GAME_WIDTH,
-  LANE_X,
   MAX_SPEED,
+  PLAYER_Y,
   UNITS_PER_METRE,
 } from '../config/GameConfig';
+import {
+  HORIZON_Y,
+  aboveHorizon,
+  depthScale,
+  laneXAt,
+  roadHalfWidthAt,
+} from '../utils/Perspective';
 import { GameState } from '../core/GameState';
 import { AudioManager } from '../managers/AudioManager';
 import { DifficultyManager } from '../systems/DifficultyManager';
@@ -25,6 +32,23 @@ import { MissionManager } from '../systems/MissionManager';
 
 const SPAWN_BUFFER = 400;
 
+// Rendering depth bands. Road/background use negatives, moving entities use
+// their world-Y so nearer things paint on top, and HUD/overlays sit far above.
+const DEPTH_SHADOW = 0;
+const DEPTH_PLAYER = Math.floor(PLAYER_Y) + 5;
+const DEPTH_OVERLAY = 90_000;
+const DEPTH_HUD = 100_000;
+
+/** Darken a hex colour by `factor` (0..1). */
+function shade(color: number, factor: number): number {
+  const c = Phaser.Display.Color.IntegerToColor(color);
+  return Phaser.Display.Color.GetColor(
+    Math.floor(c.red * factor),
+    Math.floor(c.green * factor),
+    Math.floor(c.blue * factor),
+  );
+}
+
 export class GameScene extends Phaser.Scene {
   private gs!: GameState;
   private audio!: AudioManager;
@@ -39,6 +63,10 @@ export class GameScene extends Phaser.Scene {
   private theme!: Theme;
 
   private roadFx!: Phaser.GameObjects.Graphics;
+  private shadowFx!: Phaser.GameObjects.Graphics;
+  private bgFar?: Phaser.GameObjects.TileSprite;
+  private bgNear?: Phaser.GameObjects.TileSprite;
+  private headlight?: Phaser.GameObjects.Image;
   private roadScroll = 0;
   private frontierY = 0;
   private totalPixels = 0;
@@ -103,14 +131,23 @@ export class GameScene extends Phaser.Scene {
     this.completedStars = 0;
 
     this.buildBackground();
-    this.roadFx = this.add.graphics();
+    this.roadFx = this.add.graphics().setDepth(-20);
+    this.shadowFx = this.add.graphics().setDepth(DEPTH_SHADOW);
     this.drawRoad();
+
+    // Headlight cone (subtle by day, prominent at night).
+    this.headlight = this.add
+      .image(0, 0, 'headlight')
+      .setOrigin(0.5, 1)
+      .setDepth(DEPTH_PLAYER - 1)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setAlpha(this.theme.night ? 0.9 : 0.28);
 
     // Player with equipped scooter colour.
     const scooterId = this.gs.save.equippedItems.scooter ?? 'scooter-pink';
     const scooterTint = SHOP_ITEMS.find((s) => s.id === scooterId)?.tint ?? 0xff5db1;
     this.player = new Player(this, scooterTint);
-    this.player.setDepth(20);
+    this.player.setDepth(DEPTH_PLAYER);
 
     this.buildHud();
     this.buildInput();
@@ -130,29 +167,70 @@ export class GameScene extends Phaser.Scene {
 
   // ---- Setup helpers ------------------------------------------------------
   private buildBackground(): void {
-    this.cameras.main.setBackgroundColor(this.theme.sky);
-    // Distant skyline band.
-    const g = this.add.graphics();
-    g.fillStyle(this.theme.horizon, 1);
-    g.fillRect(0, GAME_HEIGHT * 0.2, GAME_WIDTH, GAME_HEIGHT * 0.15);
-    for (let i = 0; i < 10; i++) {
-      const bw = Phaser.Math.Between(70, 130);
-      const bh = Phaser.Math.Between(80, 220);
-      g.fillStyle(this.theme.building, 1);
-      g.fillRect(i * 120, GAME_HEIGHT * 0.35 - bh, bw, bh);
+    const horizonY = HORIZON_Y;
+
+    // Vertical sky gradient (sky -> horizon haze).
+    const sky = this.add.graphics().setDepth(-40);
+    sky.fillGradientStyle(
+      this.theme.sky,
+      this.theme.sky,
+      this.theme.horizon,
+      this.theme.horizon,
+      1,
+    );
+    sky.fillRect(0, 0, GAME_WIDTH, horizonY + 40);
+
+    // Sun / moon glow near the horizon.
+    const glow = this.add
+      .image(GAME_WIDTH * 0.72, horizonY * 0.55, 'glow')
+      .setDepth(-38)
+      .setDisplaySize(560, 560)
+      .setTint(this.theme.night ? 0xbfd0ff : 0xfff2c0)
+      .setAlpha(this.theme.night ? 0.5 : 0.8);
+    this.tweens.add({ targets: glow, alpha: glow.alpha * 0.7, duration: 2600, yoyo: true, repeat: -1 });
+
+    // Distant hills band for a sense of place.
+    const hills = this.add.graphics().setDepth(-34);
+    hills.fillStyle(this.theme.horizon, 1);
+    hills.beginPath();
+    hills.moveTo(0, horizonY);
+    for (let x = 0; x <= GAME_WIDTH; x += 120) {
+      hills.lineTo(x, horizonY - 40 - Math.abs(Math.sin(x * 0.006)) * 90);
     }
-    g.setDepth(-5);
+    hills.lineTo(GAME_WIDTH, horizonY);
+    hills.closePath();
+    hills.fillPath();
+
+    // Two parallax skyline layers (atmospheric perspective: far = hazier).
+    const stripH = 300;
+    this.bgFar = this.add
+      .tileSprite(GAME_WIDTH / 2, horizonY - 90, GAME_WIDTH, stripH, 'bg-buildings')
+      .setDepth(-32)
+      .setTint(this.theme.building)
+      .setAlpha(0.55);
+    this.bgNear = this.add
+      .tileSprite(GAME_WIDTH / 2, horizonY - 20, GAME_WIDTH, stripH, 'bg-buildings')
+      .setDepth(-30)
+      .setTint(this.theme.building)
+      .setAlpha(0.9)
+      .setScale(1, 1.25);
+
+    // Ground beyond the road (grass/earth) below the horizon.
+    const ground = this.add.graphics().setDepth(-25);
+    ground.fillStyle(shade(this.theme.sidewalk, 0.75), 1);
+    ground.fillRect(0, horizonY, GAME_WIDTH, GAME_HEIGHT - horizonY);
+
+    // Cinematic vignette over the play area (below the HUD).
+    this.add
+      .image(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'vignette')
+      .setDisplaySize(GAME_WIDTH, GAME_HEIGHT)
+      .setDepth(DEPTH_OVERLAY)
+      .setAlpha(this.theme.night ? 0.9 : 0.6);
 
     if (this.theme.night) {
-      const overlay = this.add.rectangle(
-        GAME_WIDTH / 2,
-        GAME_HEIGHT / 2,
-        GAME_WIDTH,
-        GAME_HEIGHT,
-        0x000022,
-        0.45,
-      );
-      overlay.setDepth(15);
+      this.add
+        .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0a0a33, 0.4)
+        .setDepth(DEPTH_OVERLAY - 1);
     }
     if (this.theme.rain && !this.gs.save.settings.reducedMotion) {
       this.rainEmitter = this.add.particles(0, 0, 'particle', {
@@ -167,7 +245,7 @@ export class GameScene extends Phaser.Scene {
         tint: 0x9fd8ff,
         alpha: 0.5,
       });
-      this.rainEmitter.setDepth(30);
+      this.rainEmitter.setDepth(DEPTH_OVERLAY - 2);
     }
   }
 
@@ -185,27 +263,27 @@ export class GameScene extends Phaser.Scene {
       color: '#ffffff',
       fontStyle: 'bold',
     };
-    this.distanceText = this.add.text(40, 50, '0 m', style).setDepth(40);
+    this.distanceText = this.add.text(40, 50, '0 m', style).setDepth(DEPTH_HUD);
     this.coinText = this.add
       .text(40, 120, '0', { ...style, fontSize: '40px', color: '#ffcc33' })
-      .setDepth(40);
-    this.add.image(200, 138, 'coin').setScale(0.7).setDepth(40).setScrollFactor(0);
+      .setDepth(DEPTH_HUD);
+    this.add.image(200, 138, 'coin').setScale(0.7).setDepth(DEPTH_HUD).setScrollFactor(0);
     this.boneText = this.add
       .text(260, 120, '0', { ...style, fontSize: '40px', color: '#f3e9d2' })
-      .setDepth(40);
-    this.add.image(410, 138, 'bone').setScale(0.7).setDepth(40);
+      .setDepth(DEPTH_HUD);
+    this.add.image(410, 138, 'bone').setScale(0.7).setDepth(DEPTH_HUD);
 
     this.multText = this.add
       .text(GAME_WIDTH / 2, 60, 'x1', { ...style, fontSize: '54px', color: '#ff5db1' })
       .setOrigin(0.5, 0)
-      .setDepth(40);
+      .setDepth(DEPTH_HUD);
     this.powerText = this.add
       .text(GAME_WIDTH / 2, 140, '', { ...style, fontSize: '32px', color: '#9fe0ff' })
       .setOrigin(0.5, 0)
-      .setDepth(40);
+      .setDepth(DEPTH_HUD);
 
     // Pause button
-    const pause = this.add.container(GAME_WIDTH - 90, 90).setDepth(40);
+    const pause = this.add.container(GAME_WIDTH - 90, 90).setDepth(DEPTH_HUD);
     const pg = this.add.graphics();
     pg.fillStyle(0x000000, 0.35);
     pg.fillRoundedRect(-56, -56, 112, 112, 20);
@@ -219,7 +297,7 @@ export class GameScene extends Phaser.Scene {
     );
     pause.on('pointerup', () => this.pauseGame());
 
-    this.progressBar = this.add.graphics().setDepth(40);
+    this.progressBar = this.add.graphics().setDepth(DEPTH_HUD);
   }
 
   private buildInput(): void {
@@ -298,6 +376,17 @@ export class GameScene extends Phaser.Scene {
     );
     this.generateAhead();
     this.drawRoad();
+    this.drawShadows();
+
+    // Parallax skyline drift for a sense of forward motion.
+    if (this.bgFar) this.bgFar.tilePositionX += dy * 0.02;
+    if (this.bgNear) this.bgNear.tilePositionX += dy * 0.05;
+
+    // Headlight follows the scooter and points down the track.
+    if (this.headlight) {
+      this.headlight.setPosition(this.player.x, this.player.y - 20);
+      this.headlight.setScale(0.9 + (this.powers.isActive('turbo') ? 0.3 : 0));
+    }
 
     // Power-up timers.
     const expired = this.powers.update(dt);
@@ -351,7 +440,7 @@ export class GameScene extends Phaser.Scene {
         strokeThickness: 6,
       })
       .setOrigin(0.5)
-      .setDepth(45);
+      .setDepth(DEPTH_HUD - 1);
     this.tweens.add({
       targets: txt,
       y: GAME_HEIGHT * 0.36,
@@ -486,7 +575,7 @@ export class GameScene extends Phaser.Scene {
       scale: { start: 0.8, end: 0 },
       tint,
     });
-    p.setDepth(25);
+    p.setDepth(DEPTH_HUD - 500);
     this.time.delayedCall(420, () => p.destroy());
   }
 
@@ -510,39 +599,98 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // ---- Road rendering -----------------------------------------------------
+  // ---- Road rendering (perspective trapezoid) -----------------------------
   private drawRoad(): void {
     const g = this.roadFx;
     g.clear();
-    g.setDepth(-2);
-    const roadTop = GAME_HEIGHT * 0.32;
-    // road surface
-    g.fillStyle(this.theme.road, 1);
-    g.fillRect(GAME_WIDTH * 0.14, roadTop, GAME_WIDTH * 0.72, GAME_HEIGHT - roadTop);
-    // sidewalks
-    g.fillStyle(this.theme.sidewalk, 1);
-    g.fillRect(0, roadTop, GAME_WIDTH * 0.14, GAME_HEIGHT - roadTop);
-    g.fillRect(GAME_WIDTH * 0.86, roadTop, GAME_WIDTH * 0.14, GAME_HEIGHT - roadTop);
+    const cx = GAME_WIDTH / 2;
+    const top = HORIZON_Y;
+    const bottom = GAME_HEIGHT;
 
-    // dashed lane dividers, scrolling
-    const dividers = [
-      (LANE_X[0] + LANE_X[1]) / 2,
-      (LANE_X[1] + LANE_X[2]) / 2,
-    ];
-    const dash = 60;
-    const gap = 50;
+    const topHalf = roadHalfWidthAt(top);
+    const botHalf = roadHalfWidthAt(bottom);
+    const shoulder = 1.35; // sidewalks extend beyond the road edge
+
+    // Sidewalk / shoulder trapezoid (slightly wider, lighter).
+    g.fillStyle(this.theme.sidewalk, 1);
+    g.fillPoints(
+      [
+        new Phaser.Geom.Point(cx - topHalf * shoulder, top),
+        new Phaser.Geom.Point(cx + topHalf * shoulder, top),
+        new Phaser.Geom.Point(cx + botHalf * shoulder, bottom),
+        new Phaser.Geom.Point(cx - botHalf * shoulder, bottom),
+      ],
+      true,
+    );
+
+    // Road surface trapezoid.
+    g.fillStyle(this.theme.road, 1);
+    g.fillPoints(
+      [
+        new Phaser.Geom.Point(cx - topHalf, top),
+        new Phaser.Geom.Point(cx + topHalf, top),
+        new Phaser.Geom.Point(cx + botHalf, bottom),
+        new Phaser.Geom.Point(cx - botHalf, bottom),
+      ],
+      true,
+    );
+
+    // Yellow road edges.
+    g.lineStyle(6, 0xffcc33, 0.9);
+    g.lineBetween(cx - topHalf, top, cx - botHalf, bottom);
+    g.lineBetween(cx + topHalf, top, cx + botHalf, bottom);
+
+    // Dashed lane dividers between lanes, converging to the vanishing point.
+    const dash = 70;
+    const gap = 55;
     const period = dash + gap;
     const offset = this.roadScroll % period;
-    g.fillStyle(0xffffff, this.theme.night ? 0.5 : 0.85);
-    for (const x of dividers) {
-      for (let y = roadTop - period + offset; y < GAME_HEIGHT; y += period) {
-        g.fillRect(x - 5, y, 10, dash);
+    g.fillStyle(0xffffff, this.theme.night ? 0.45 : 0.8);
+    for (const boundary of [0.5, 1.5]) {
+      // lane boundary position expressed between lane 0 and lane 2
+      for (let y = top - period + offset; y < bottom; y += period) {
+        const y2 = Math.min(bottom, y + dash);
+        if (y2 <= top) continue;
+        const yA = Math.max(y, top);
+        const xA = this.boundaryX(boundary, yA);
+        const xB = this.boundaryX(boundary, y2);
+        const wA = Math.max(2, depthScale(yA) * 9);
+        const wB = Math.max(2, depthScale(y2) * 9);
+        g.fillPoints(
+          [
+            new Phaser.Geom.Point(xA - wA, yA),
+            new Phaser.Geom.Point(xA + wA, yA),
+            new Phaser.Geom.Point(xB + wB, y2),
+            new Phaser.Geom.Point(xB - wB, y2),
+          ],
+          true,
+        );
       }
     }
-    // road edges
-    g.fillStyle(0xffcc33, 0.9);
-    g.fillRect(GAME_WIDTH * 0.14 - 6, roadTop, 6, GAME_HEIGHT - roadTop);
-    g.fillRect(GAME_WIDTH * 0.86, roadTop, 6, GAME_HEIGHT - roadTop);
+  }
+
+  /** X of a lane boundary (0.5 = between lane 0 and 1) at a given depth. */
+  private boundaryX(boundary: number, y: number): number {
+    const lo = Math.floor(boundary);
+    return (laneXAt(lo, y) + laneXAt(lo + 1, y)) / 2;
+  }
+
+  /** Soft ground shadows under the player and every visible obstacle. */
+  private drawShadows(): void {
+    const g = this.shadowFx;
+    g.clear();
+    const drawAt = (x: number, y: number, scale: number) => {
+      const w = 150 * scale;
+      const h = 46 * scale;
+      g.fillStyle(0x000000, 0.28);
+      g.fillEllipse(x, y, w, h);
+    };
+    for (const o of this.obstacles.list) {
+      if (aboveHorizon(o.image.y)) continue;
+      drawAt(o.image.x, o.image.y - 6, depthScale(o.image.y, o.baseScale));
+    }
+    // Player shadow stays on the ground even while jumping (offset ignored).
+    drawAt(this.player.x, PLAYER_Y + 4, 1);
   }
 
   // ---- End of run ---------------------------------------------------------
