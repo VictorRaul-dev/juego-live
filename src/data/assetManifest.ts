@@ -30,8 +30,8 @@ export interface RealAsset {
 
 export const REAL_IMAGES: RealAsset[] = [
   // Examples — uncomment and drop the matching files into public/assets/images/:
-  // { key: 'player', file: 'vaca.png' },
-  // { key: 'player-slide', file: 'vaca-slide.png' },
+   { key: 'player', file: 'vaca.png' },
+   { key: 'player-slide', file: 'vaca-slide.png' },
   // { key: 'ob-car', file: 'car.png' },
   // { key: 'coin', file: 'coin.png' },
 ];
