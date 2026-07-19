@@ -33,11 +33,13 @@ export class ObstacleManager {
 
   spawn(spec: ObstacleSpec, y: number, difficulty: number): void {
     const img = this.pool.obtain(`ob-${spec.type}`, laneXAt(spec.lane, y), y);
-    // Size variance so obstacles feel varied without being unfair.
-    const baseScale = Phaser.Math.FloatBetween(0.9, 1.3);
-    img.setOrigin(0.5, 1).setScale(depthScale(y, baseScale)).setVisible(!aboveHorizon(y));
-
     const moving = MOVING_TYPES.includes(spec.type);
+    // Normalise any source resolution to a consistent on-screen width so real
+    // (large) PNGs and procedural placeholders render at the same size.
+    const targetW = moving ? 220 : 150;
+    const norm = targetW / (img.width || targetW);
+    const baseScale = norm * Phaser.Math.FloatBetween(0.92, 1.12);
+    img.setOrigin(0.5, 1).setScale(depthScale(y, baseScale)).setVisible(!aboveHorizon(y));
     this.active.push({
       image: img,
       type: spec.type,

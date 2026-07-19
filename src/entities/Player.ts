@@ -14,32 +14,37 @@ import {
  * resolved by GameScene using {@link getHitBox} plus the airborne/sliding flags.
  */
 export class Player extends Phaser.GameObjects.Container {
+  /** Target on-screen height so any source image renders at a consistent size. */
+  private static readonly TARGET_HEIGHT = 300;
+
   lane = 1;
   isJumping = false;
   isSliding = false;
   private jumpOffset = 0;
   private sprite: Phaser.GameObjects.Sprite;
-  private deck: Phaser.GameObjects.Rectangle;
   private shieldBubble: Phaser.GameObjects.Image;
   private baseY: number;
+  private baseScale = 1;
   private laneTween?: Phaser.Tweens.Tween;
   private jumpTween?: Phaser.Tweens.Tween;
   private slideTimer?: Phaser.Time.TimerEvent;
   private bobTween?: Phaser.Tweens.Tween;
 
-  constructor(scene: Phaser.Scene, scooterTint: number) {
+  constructor(scene: Phaser.Scene, _scooterTint: number) {
     super(scene, LANE_X[1], PLAYER_Y);
     this.baseY = PLAYER_Y;
 
-    // Coloured deck overlay to reflect the equipped scooter colour.
-    this.deck = scene.add.rectangle(-6, 34, 96, 12, scooterTint).setOrigin(0.5);
-    this.sprite = scene.add.sprite(0, 0, 'player').setOrigin(0.5);
+    this.sprite = scene.add.sprite(0, 0, 'player').setOrigin(0.5, 0.85);
+    // Normalise the sprite to a consistent height regardless of source art size.
+    this.baseScale = Player.TARGET_HEIGHT / (this.sprite.height || Player.TARGET_HEIGHT);
+    this.sprite.setScale(this.baseScale);
+
     this.shieldBubble = scene.add
-      .image(0, -10, 'shield-bubble')
-      .setDisplaySize(180, 180)
+      .image(0, -40, 'shield-bubble')
+      .setDisplaySize(240, 240)
       .setVisible(false);
 
-    this.add([this.deck, this.sprite, this.shieldBubble]);
+    this.add([this.sprite, this.shieldBubble]);
     this.setSize(120, 150);
     scene.add.existing(this);
 
@@ -54,8 +59,8 @@ export class Player extends Phaser.GameObjects.Container {
     });
   }
 
-  setScooterTint(tint: number): void {
-    this.deck.setFillStyle(tint);
+  setScooterTint(_tint: number): void {
+    // No-op with real/placeholder full-character art (kept for API compatibility).
   }
 
   showShield(on: boolean): void {
@@ -113,11 +118,12 @@ export class Player extends Phaser.GameObjects.Container {
     if (this.isSliding || this.isJumping) return false;
     this.isSliding = true;
     this.sprite.setTexture('player-slide');
-    this.sprite.setScale(1, 0.8);
+    const s = Player.TARGET_HEIGHT / (this.sprite.height || Player.TARGET_HEIGHT);
+    this.sprite.setScale(s, s * 0.85);
     this.slideTimer = this.scene.time.delayedCall(SLIDE_MS, () => {
       this.isSliding = false;
       this.sprite.setTexture('player');
-      this.sprite.setScale(1, 1);
+      this.sprite.setScale(this.baseScale);
     });
     return true;
   }

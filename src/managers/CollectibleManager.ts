@@ -33,15 +33,18 @@ export class CollectibleManager {
     const texture = kind === 'coin' ? 'coin' : kind === 'bone' ? 'bone' : 'key';
     const yy = y - (elevated ? 120 : 0);
     const img = this.pool.obtain(texture, laneXAt(lane, yy), yy);
-    img.setOrigin(0.5).setScale(depthScale(yy)).setVisible(!aboveHorizon(yy));
+    const targetW = kind === 'bone' ? 84 : 68;
+    const baseScale = targetW / (img.width || targetW);
+    img.setOrigin(0.5).setScale(depthScale(yy, baseScale)).setVisible(!aboveHorizon(yy));
     this.scene.tweens.add({ targets: img, angle: 360, duration: 1400, repeat: -1 });
-    this.active.push({ image: img, kind, lane, baseScale: 1, pulled: false });
+    this.active.push({ image: img, kind, lane, baseScale, pulled: false });
   }
 
   spawnPower(type: PowerUpType, lane: number, y: number): void {
     const img = this.pool.obtain(`pu-${type}`, laneXAt(lane, y), y);
-    img.setOrigin(0.5).setScale(depthScale(y, 1.25)).setVisible(!aboveHorizon(y));
-    this.active.push({ image: img, kind: 'power', lane, powerType: type, baseScale: 1.25, pulled: false });
+    const baseScale = 96 / (img.width || 96);
+    img.setOrigin(0.5).setScale(depthScale(y, baseScale)).setVisible(!aboveHorizon(y));
+    this.active.push({ image: img, kind: 'power', lane, powerType: type, baseScale, pulled: false });
   }
 
   update(dy: number, magnetOn: boolean, playerX: number, playerY: number): void {

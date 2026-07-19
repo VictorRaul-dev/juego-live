@@ -7,13 +7,8 @@ import {
   PLAYER_Y,
   UNITS_PER_METRE,
 } from '../config/GameConfig';
-import {
-  HORIZON_Y,
-  aboveHorizon,
-  depthScale,
-  laneXAt,
-  roadHalfWidthAt,
-} from '../utils/Perspective';
+import { HORIZON_Y, aboveHorizon } from '../utils/Perspective';
+import { LANE_X } from '../config/GameConfig';
 import { GameState } from '../core/GameState';
 import { AudioManager } from '../managers/AudioManager';
 import { DifficultyManager } from '../systems/DifficultyManager';
@@ -599,98 +594,59 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // ---- Road rendering (perspective trapezoid) -----------------------------
+  // ---- Road rendering (flat, three clear parallel lanes) ------------------
   private drawRoad(): void {
     const g = this.roadFx;
     g.clear();
-    const cx = GAME_WIDTH / 2;
     const top = HORIZON_Y;
     const bottom = GAME_HEIGHT;
+    const roadLeft = GAME_WIDTH * 0.13;
+    const roadRight = GAME_WIDTH * 0.87;
 
-    const topHalf = roadHalfWidthAt(top);
-    const botHalf = roadHalfWidthAt(bottom);
-    const shoulder = 1.35; // sidewalks extend beyond the road edge
-
-    // Sidewalk / shoulder trapezoid (slightly wider, lighter).
+    // Sidewalks / shoulders.
     g.fillStyle(this.theme.sidewalk, 1);
-    g.fillPoints(
-      [
-        new Phaser.Geom.Point(cx - topHalf * shoulder, top),
-        new Phaser.Geom.Point(cx + topHalf * shoulder, top),
-        new Phaser.Geom.Point(cx + botHalf * shoulder, bottom),
-        new Phaser.Geom.Point(cx - botHalf * shoulder, bottom),
-      ],
-      true,
-    );
+    g.fillRect(0, top, roadLeft, bottom - top);
+    g.fillRect(roadRight, top, GAME_WIDTH - roadRight, bottom - top);
 
-    // Road surface trapezoid.
+    // Road surface.
     g.fillStyle(this.theme.road, 1);
-    g.fillPoints(
-      [
-        new Phaser.Geom.Point(cx - topHalf, top),
-        new Phaser.Geom.Point(cx + topHalf, top),
-        new Phaser.Geom.Point(cx + botHalf, bottom),
-        new Phaser.Geom.Point(cx - botHalf, bottom),
-      ],
-      true,
-    );
+    g.fillRect(roadLeft, top, roadRight - roadLeft, bottom - top);
 
     // Yellow road edges.
-    g.lineStyle(6, 0xffcc33, 0.9);
-    g.lineBetween(cx - topHalf, top, cx - botHalf, bottom);
-    g.lineBetween(cx + topHalf, top, cx + botHalf, bottom);
+    g.fillStyle(0xffcc33, 0.9);
+    g.fillRect(roadLeft - 5, top, 6, bottom - top);
+    g.fillRect(roadRight - 1, top, 6, bottom - top);
 
-    // Dashed lane dividers between lanes, converging to the vanishing point.
+    // Dashed lane dividers between the three lanes, scrolling toward the player.
+    const dividers = [(LANE_X[0] + LANE_X[1]) / 2, (LANE_X[1] + LANE_X[2]) / 2];
     const dash = 70;
     const gap = 55;
     const period = dash + gap;
     const offset = this.roadScroll % period;
-    g.fillStyle(0xffffff, this.theme.night ? 0.45 : 0.8);
-    for (const boundary of [0.5, 1.5]) {
-      // lane boundary position expressed between lane 0 and lane 2
+    g.fillStyle(0xffffff, this.theme.night ? 0.5 : 0.85);
+    for (const x of dividers) {
       for (let y = top - period + offset; y < bottom; y += period) {
-        const y2 = Math.min(bottom, y + dash);
-        if (y2 <= top) continue;
         const yA = Math.max(y, top);
-        const xA = this.boundaryX(boundary, yA);
-        const xB = this.boundaryX(boundary, y2);
-        const wA = Math.max(2, depthScale(yA) * 9);
-        const wB = Math.max(2, depthScale(y2) * 9);
-        g.fillPoints(
-          [
-            new Phaser.Geom.Point(xA - wA, yA),
-            new Phaser.Geom.Point(xA + wA, yA),
-            new Phaser.Geom.Point(xB + wB, y2),
-            new Phaser.Geom.Point(xB - wB, y2),
-          ],
-          true,
-        );
+        const yB = Math.min(bottom, y + dash);
+        if (yB > yA) g.fillRect(x - 6, yA, 12, yB - yA);
       }
     }
-  }
-
-  /** X of a lane boundary (0.5 = between lane 0 and 1) at a given depth. */
-  private boundaryX(boundary: number, y: number): number {
-    const lo = Math.floor(boundary);
-    return (laneXAt(lo, y) + laneXAt(lo + 1, y)) / 2;
   }
 
   /** Soft ground shadows under the player and every visible obstacle. */
   private drawShadows(): void {
     const g = this.shadowFx;
     g.clear();
-    const drawAt = (x: number, y: number, scale: number) => {
-      const w = 150 * scale;
-      const h = 46 * scale;
+    const drawAt = (x: number, y: number, w: number) => {
       g.fillStyle(0x000000, 0.28);
-      g.fillEllipse(x, y, w, h);
+      g.fillEllipse(x, y, w, w * 0.3);
     };
     for (const o of this.obstacles.list) {
       if (aboveHorizon(o.image.y)) continue;
-      drawAt(o.image.x, o.image.y - 6, depthScale(o.image.y, o.baseScale));
+      drawAt(o.image.x, o.image.y - 6, Math.max(60, o.image.displayWidth * 0.85));
     }
-    // Player shadow stays on the ground even while jumping (offset ignored).
-    drawAt(this.player.x, PLAYER_Y + 4, 1);
+    // Player shadow stays on the ground even while jumping (y offset ignored).
+    drawAt(this.player.x, PLAYER_Y + 4, 150);
   }
 
   // ---- End of run ---------------------------------------------------------

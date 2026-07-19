@@ -38,8 +38,9 @@ export class MainMenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // Idle VACA
-    const hero = this.add.image(GAME_WIDTH / 2, 700, 'player').setScale(2.0);
+    // Idle VACA — normalise to a fixed height so any source image fits.
+    const hero = this.add.image(GAME_WIDTH / 2, 700, 'player');
+    hero.setScale(360 / (hero.height || 360));
     this.tweens.add({
       targets: hero,
       y: 682,
