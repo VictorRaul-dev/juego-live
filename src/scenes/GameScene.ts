@@ -291,7 +291,7 @@ export class GameScene extends Phaser.Scene {
       new Phaser.Geom.Rectangle(-56, -56, 112, 112),
       Phaser.Geom.Rectangle.Contains,
     );
-    pause.on('pointerup', () => this.pauseGame());
+    pause.on('pointerdown', () => this.pauseGame());
 
     this.progressBar = this.add.graphics().setDepth(DEPTH_HUD);
   }

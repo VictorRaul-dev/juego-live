@@ -92,7 +92,7 @@ export class LevelSelectScene extends Phaser.Scene {
           new Phaser.Geom.Rectangle(-cellW / 2, -cellH / 2, cellW, cellH),
           Phaser.Geom.Rectangle.Contains,
         );
-        bg.on('pointerup', () => {
+        bg.on('pointerdown', () => {
           audio.play('button');
           gs.currentLevel = level.id;
           this.scene.start('GameScene');

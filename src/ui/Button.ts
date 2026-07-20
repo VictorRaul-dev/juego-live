@@ -15,9 +15,11 @@ export interface ButtonOptions {
 export class Button extends Phaser.GameObjects.Container {
   private bg: Phaser.GameObjects.Graphics;
   private label: Phaser.GameObjects.Text;
+  private content: Phaser.GameObjects.Container;
   private bw: number;
   private bh: number;
   private bcolor: number;
+  private fired = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -43,20 +45,29 @@ export class Button extends Phaser.GameObjects.Container {
       })
       .setOrigin(0.5);
 
-    this.add([this.bg, this.label]);
+    // Press feedback scales this inner wrapper only, so the interactive hit
+    // area on the container never moves — taps register on the first touch.
+    this.content = scene.add.container(0, 0, [this.bg, this.label]);
+    this.add(this.content);
     this.setSize(this.bw, this.bh);
     this.setInteractive(
       new Phaser.Geom.Rectangle(-this.bw / 2, -this.bh / 2, this.bw, this.bh),
       Phaser.Geom.Rectangle.Contains,
     );
 
-    this.on('pointerover', () => this.setScale(1.04));
-    this.on('pointerout', () => this.setScale(1));
-    this.on('pointerdown', () => this.setScale(0.96));
-    this.on('pointerup', () => {
-      this.setScale(1.04);
+    // Fire on pointer DOWN for an immediate, tap-friendly response on mobile
+    // (no hover step required). A guard prevents a double trigger if a
+    // pointerup lands on the same button before the scene changes.
+    const activate = () => {
+      if (this.fired) return;
+      this.fired = true;
+      this.content.setScale(0.96);
       onClick();
-    });
+    };
+    this.on('pointerdown', activate);
+    this.on('pointerover', () => this.content.setScale(1.03));
+    this.on('pointerout', () => this.content.setScale(1));
+    this.on('pointerup', () => this.content.setScale(1));
 
     scene.add.existing(this);
   }
