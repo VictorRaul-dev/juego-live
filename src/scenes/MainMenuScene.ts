@@ -39,11 +39,11 @@ export class MainMenuScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     // Idle VACA — normalise to a fixed height so any source image fits.
-    const hero = this.add.image(GAME_WIDTH / 2, 700, 'player');
-    hero.setScale(360 / (hero.height || 360));
+    const hero = this.add.image(GAME_WIDTH / 2, 630, 'player');
+    hero.setScale(300 / (hero.height || 300));
     this.tweens.add({
       targets: hero,
-      y: 682,
+      y: 614,
       angle: 3,
       duration: 900,
       yoyo: true,
@@ -53,7 +53,7 @@ export class MainMenuScene extends Phaser.Scene {
 
     // Best distance
     this.add
-      .text(GAME_WIDTH / 2, 940, `${t('menu.best')}: ${Math.floor(gs.save.bestDistance)} m`, {
+      .text(GAME_WIDTH / 2, 840, `${t('menu.best')}: ${Math.floor(gs.save.bestDistance)} m`, {
         fontFamily: 'Trebuchet MS',
         fontSize: '40px',
         color: '#ffcc33',
@@ -62,25 +62,51 @@ export class MainMenuScene extends Phaser.Scene {
 
     const click = () => audio.play('button');
 
-    new Button(this, GAME_WIDTH / 2, 1080, t('menu.play'), () => {
+    // --- Primary call to action: JUGAR, set apart and highlighted ---
+    const playY = 1090;
+    const glow = this.add
+      .image(GAME_WIDTH / 2, playY, 'glow')
+      .setTint(0xff5db1)
+      .setBlendMode(Phaser.BlendModes.ADD)
+      .setDisplaySize(620, 320)
+      .setAlpha(0.5);
+    this.tweens.add({
+      targets: glow,
+      alpha: 0.85,
+      scaleX: glow.scaleX * 1.08,
+      scaleY: glow.scaleY * 1.08,
+      duration: 900,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.inOut',
+    });
+    new Button(this, GAME_WIDTH / 2, playY, t('menu.play'), () => {
       click();
       this.scene.start('LevelSelectScene');
-    });
+    }, { width: 520, height: 150, fontSize: 62, color: 0xff3b8d });
 
+    // A faint divider makes the separation from the secondary buttons explicit.
+    const div = this.add.graphics();
+    div.fillStyle(0xffffff, 0.12);
+    div.fillRoundedRect(GAME_WIDTH / 2 - 240, 1270, 480, 4, 2);
+
+    // --- Secondary buttons, clearly below the divider ---
     const smallOpts = { width: 300, height: 96, fontSize: 34, color: 0x4a2b8c };
-    new Button(this, GAME_WIDTH / 2 - 165, 1230, t('menu.shop'), () => {
+    const rowA = 1400;
+    const rowB = 1524;
+    new Button(this, GAME_WIDTH / 2 - 165, rowA, t('menu.shop'), () => {
       click();
       this.scene.start('ShopScene');
     }, smallOpts);
-    new Button(this, GAME_WIDTH / 2 + 165, 1230, t('menu.missions'), () => {
+    new Button(this, GAME_WIDTH / 2 + 165, rowA, t('menu.missions'), () => {
       click();
       this.scene.start('MissionsScene');
     }, smallOpts);
-    new Button(this, GAME_WIDTH / 2 - 165, 1350, t('menu.levels'), () => {
+    new Button(this, GAME_WIDTH / 2 - 165, rowB, t('menu.levels'), () => {
       click();
       this.scene.start('LevelSelectScene');
     }, smallOpts);
-    new Button(this, GAME_WIDTH / 2 + 165, 1350, t('menu.settings'), () => {
+    new Button(this, GAME_WIDTH / 2 + 165, rowB, t('menu.settings'), () => {
       click();
       this.scene.start('SettingsScene');
     }, smallOpts);
