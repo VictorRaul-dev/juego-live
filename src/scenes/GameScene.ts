@@ -287,11 +287,13 @@ export class GameScene extends Phaser.Scene {
     pg.fillRoundedRect(-22, -30, 14, 60, 4);
     pg.fillRoundedRect(8, -30, 14, 60, 4);
     pause.add(pg);
-    pause.setSize(112, 112).setInteractive(
-      new Phaser.Geom.Rectangle(-56, -56, 112, 112),
-      Phaser.Geom.Rectangle.Contains,
-    );
-    pause.on('pointerdown', () => this.pauseGame());
+    // Scene-level hit test for the pause button (reliable on touch). A generous
+    // corner region avoids fat-finger misses. pauseGame() disables the gameplay
+    // input before the pointer-up, so tapping pause never also triggers a jump.
+    const pauseRect = new Phaser.Geom.Rectangle(GAME_WIDTH - 200, 0, 200, 190);
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, (p: Phaser.Input.Pointer) => {
+      if (this.running && pauseRect.contains(p.x, p.y)) this.pauseGame();
+    });
 
     this.progressBar = this.add.graphics().setDepth(DEPTH_HUD);
   }
@@ -335,7 +337,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private pauseGame(): void {
-    if (!this.running) return;
+    if (!this.running || !this.scene.isActive()) return;
     this.input2.setEnabled(false);
     this.audio.stopMusic();
     this.scene.launch('PauseScene', { level: this.levelId });

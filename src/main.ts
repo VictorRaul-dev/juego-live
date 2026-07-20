@@ -47,11 +47,15 @@ const config: Phaser.Types.Core.GameConfig = {
 
 const game = new Phaser.Game(config);
 
-// Remove the HTML loading splash once Phaser has booted.
+// Remove the HTML loading splash once Phaser has booted, then refresh the
+// scale manager so the canvas bounds used for pointer mapping are up to date
+// (guards against a stale first-tap position after layout settles).
 game.events.once(Phaser.Core.Events.READY, () => {
-  const splash = document.getElementById('loading-splash');
-  splash?.remove();
+  document.getElementById('loading-splash')?.remove();
+  game.scale.refresh();
 });
+window.addEventListener('load', () => game.scale.refresh());
+setTimeout(() => game.scale.refresh(), 400);
 
 // Unlock the Web Audio context on the first real user gesture. This lives on
 // the window (not a scene) so it survives scene transitions — the first tap on

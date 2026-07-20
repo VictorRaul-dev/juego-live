@@ -45,29 +45,47 @@ export class Button extends Phaser.GameObjects.Container {
       })
       .setOrigin(0.5);
 
-    // Press feedback scales this inner wrapper only, so the interactive hit
-    // area on the container never moves — taps register on the first touch.
+    // Press feedback scales this inner wrapper only, so nothing about the
+    // hit test depends on the visual state.
     this.content = scene.add.container(0, 0, [this.bg, this.label]);
     this.add(this.content);
     this.setSize(this.bw, this.bh);
+
+    // Hit-test at the SCENE input level (the same path that powers the gameplay
+    // swipe controls) instead of relying on per-object interactivity. This is
+    // the most reliable approach on real touch screens: on any pointer-down we
+    // check whether it landed inside this button's on-screen bounds.
+    const onDown = (pointer: Phaser.Input.Pointer) => {
+      if (this.fired) return;
+      // Build the hit rect from the button's real size (getBounds() ignores the
+      // Graphics background and would only cover the text). getWorldTransformMatrix
+      // composes any parent-container transforms so nested buttons work too.
+      const m = this.getWorldTransformMatrix();
+      const w = this.bw * m.scaleX + 24; // +padding for easier phone taps
+      const h = this.bh * m.scaleY + 24;
+      const b = new Phaser.Geom.Rectangle(m.tx - w / 2, m.ty - h / 2, w, h);
+      if (!b.contains(pointer.x, pointer.y)) return;
+      this.fired = true;
+      this.content.setScale(0.95);
+      onClick();
+      scene.time.delayedCall(280, () => {
+        if (!this.scene) return; // button was destroyed by a scene change/rebuild
+        this.fired = false;
+        this.content.setScale(1);
+      });
+    };
+    scene.input.on(Phaser.Input.Events.POINTER_DOWN, onDown);
+    this.once(Phaser.GameObjects.Events.DESTROY, () => {
+      scene.input.off(Phaser.Input.Events.POINTER_DOWN, onDown);
+    });
+
+    // Keep lightweight hover polish on desktop (does not gate activation).
     this.setInteractive(
       new Phaser.Geom.Rectangle(-this.bw / 2, -this.bh / 2, this.bw, this.bh),
       Phaser.Geom.Rectangle.Contains,
     );
-
-    // Fire on pointer DOWN for an immediate, tap-friendly response on mobile
-    // (no hover step required). A guard prevents a double trigger if a
-    // pointerup lands on the same button before the scene changes.
-    const activate = () => {
-      if (this.fired) return;
-      this.fired = true;
-      this.content.setScale(0.96);
-      onClick();
-    };
-    this.on('pointerdown', activate);
-    this.on('pointerover', () => this.content.setScale(1.03));
-    this.on('pointerout', () => this.content.setScale(1));
-    this.on('pointerup', () => this.content.setScale(1));
+    this.on('pointerover', () => !this.fired && this.content.setScale(1.03));
+    this.on('pointerout', () => !this.fired && this.content.setScale(1));
 
     scene.add.existing(this);
   }

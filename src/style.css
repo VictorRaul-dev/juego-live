@@ -41,14 +41,19 @@ canvas {
   touch-action: none;
 }
 
-/* Loading splash shown before Phaser boots */
+/* Loading splash shown before Phaser boots. Positioned absolutely so it
+   overlays the canvas instead of sitting beside it in the flex row — otherwise
+   it would push the canvas sideways and corrupt the initial pointer mapping. */
 #loading-splash {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 12px;
   animation: fadein 0.4s ease;
+  pointer-events: none;
 }
 
 .splash-logo {

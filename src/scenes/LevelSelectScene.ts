@@ -88,15 +88,16 @@ export class LevelSelectScene extends Phaser.Scene {
               .setOrigin(0.5),
           );
         }
-        bg.setInteractive(
-          new Phaser.Geom.Rectangle(-cellW / 2, -cellH / 2, cellW, cellH),
-          Phaser.Geom.Rectangle.Contains,
-        );
-        bg.on('pointerdown', () => {
+        // Scene-level hit test (reliable on touch screens).
+        const rect = new Phaser.Geom.Rectangle(x - cellW / 2, y - cellH / 2, cellW, cellH);
+        const onDown = (p: Phaser.Input.Pointer) => {
+          if (!rect.contains(p.x, p.y)) return;
+          this.input.off(Phaser.Input.Events.POINTER_DOWN, onDown);
           audio.play('button');
           gs.currentLevel = level.id;
           this.scene.start('GameScene');
-        });
+        };
+        this.input.on(Phaser.Input.Events.POINTER_DOWN, onDown);
       } else {
         card.add(this.add.text(0, 30, `🔒 ${t('common.locked')}`, {
           fontFamily: 'Trebuchet MS',
