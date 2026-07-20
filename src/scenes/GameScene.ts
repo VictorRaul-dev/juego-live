@@ -19,7 +19,6 @@ import { ObstacleManager } from '../managers/ObstacleManager';
 import { CollectibleManager, type ActivePickup } from '../managers/CollectibleManager';
 import { InputManager } from '../managers/InputManager';
 import { Player } from '../entities/Player';
-import { SHOP_ITEMS } from '../data/shopItems';
 import { getLevel } from '../data/levels';
 import type { PlayerAction, PowerUpType, RunStats } from '../core/types';
 import { getTheme, type Theme } from '../data/themes';
@@ -62,6 +61,7 @@ export class GameScene extends Phaser.Scene {
   private bgFar?: Phaser.GameObjects.TileSprite;
   private bgNear?: Phaser.GameObjects.TileSprite;
   private headlight?: Phaser.GameObjects.Image;
+  private trailEmitter?: Phaser.GameObjects.Particles.ParticleEmitter;
   private roadScroll = 0;
   private frontierY = 0;
   private totalPixels = 0;
@@ -130,19 +130,36 @@ export class GameScene extends Phaser.Scene {
     this.shadowFx = this.add.graphics().setDepth(DEPTH_SHADOW);
     this.drawRoad();
 
-    // Headlight cone (subtle by day, prominent at night).
+    // Player reflects the shop loadout: scooter skin/tint, headlight colour
+    // and trail (resolved from equipped items — see src/systems/Cosmetics.ts).
+    this.player = new Player(this, this.gs);
+    this.player.setDepth(DEPTH_PLAYER);
+
+    // Headlight cone, tinted to the equipped light (subtle by day, prominent
+    // at night).
     this.headlight = this.add
       .image(0, 0, 'headlight')
       .setOrigin(0.5, 1)
       .setDepth(DEPTH_PLAYER - 1)
+      .setTint(this.player.headlightTint)
       .setBlendMode(Phaser.BlendModes.ADD)
       .setAlpha(this.theme.night ? 0.9 : 0.28);
 
-    // Player with equipped scooter colour.
-    const scooterId = this.gs.save.equippedItems.scooter ?? 'scooter-pink';
-    const scooterTint = SHOP_ITEMS.find((s) => s.id === scooterId)?.tint ?? 0xff5db1;
-    this.player = new Player(this, scooterTint);
-    this.player.setDepth(DEPTH_PLAYER);
+    // Trail particles behind the scooter when a trail is equipped.
+    if (this.player.trailTint && !this.gs.save.settings.reducedMotion) {
+      this.trailEmitter = this.add
+        .particles(0, 0, 'particle', {
+          lifespan: 500,
+          speed: { min: 20, max: 60 },
+          scale: { start: 0.9, end: 0 },
+          quantity: this.qualityScale(2),
+          frequency: 40,
+          tint: this.player.trailTint,
+          alpha: { start: 0.7, end: 0 },
+        })
+        .setDepth(DEPTH_PLAYER - 2);
+      this.trailEmitter.startFollow(this.player, 0, 50);
+    }
 
     this.buildHud();
     this.buildInput();
@@ -728,6 +745,7 @@ export class GameScene extends Phaser.Scene {
     this.obstacles?.clear();
     this.collectibles?.clear();
     this.rainEmitter?.destroy();
+    this.trailEmitter?.destroy();
   }
 }
 

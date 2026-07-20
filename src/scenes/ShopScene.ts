@@ -9,6 +9,7 @@ import { UPGRADES, nextUpgradeCost } from '../data/upgrades';
 import { UPGRADE_MAX_LEVEL } from '../config/GameConfig';
 import type { ShopItem } from '../core/types';
 import { t } from '../core/i18n';
+import { accessoryIconKey } from '../systems/Cosmetics';
 
 export class ShopScene extends Phaser.Scene {
   private gs!: GameState;
@@ -84,8 +85,11 @@ export class ShopScene extends Phaser.Scene {
     bg.strokeRoundedRect(-250, -66, 500, 132, 18);
     c.add(bg);
 
-    const swatch = this.add.circle(-200, 0, 34, item.tint ?? 0xffffff);
-    c.add(swatch);
+    const iconKey = accessoryIconKey(item.id);
+    const preview = this.textures.exists(iconKey)
+      ? this.add.image(-200, 0, iconKey).setDisplaySize(68, 68)
+      : this.add.circle(-200, 0, 34, item.tint ?? 0xffffff);
+    c.add(preview);
 
     c.add(this.add.text(-150, -34, item.name, {
       fontFamily: 'Trebuchet MS',

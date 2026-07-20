@@ -109,12 +109,79 @@ background, no ground, no sky, no text
 
 ---
 
+## 6) Tienda: skins del scooter (personaje completo)
+
+Misma técnica que `player`: reutiliza el **bloque VACA**, cambia solo el color
+del scooter, y genera también la versión "deslizando". Ver ASSETS.md para la
+lista completa de `key`/archivo.
+
+**`skin-scooter-blue` → `skin-scooter-blue.png`** (≈512×640)
+```
+[BLOQUE VACA], standing upright and riding an electric-blue kick-scooter with
+turquoise details and a glowing front headlight, front view facing the camera,
+both front paws on the handlebar, dynamic confident pose, [SUFIJO TÉCNICO]
+```
+**`skin-scooter-blue-slide` → `skin-scooter-blue-slide.png`** (≈512×512) — igual
+pero: `crouching low and sliding on the same electric-blue kick-scooter, ducking under an obstacle`.
+
+**`skin-scooter-gold` → `skin-scooter-gold.png`** (≈512×640)
+```
+[BLOQUE VACA], standing upright and riding a shiny gold kick-scooter with
+white details and a glowing front headlight, front view facing the camera,
+both front paws on the handlebar, dynamic confident pose, [SUFIJO TÉCNICO]
+```
+**`skin-scooter-gold-slide`** — igual pero agachada/deslizando, mismo scooter dorado.
+
+**`skin-scooter-purple` → `skin-scooter-purple.png`** (≈512×640)
+```
+[BLOQUE VACA], standing upright and riding a deep purple kick-scooter with
+neon pink details and a glowing front headlight, front view facing the camera,
+both front paws on the handlebar, dynamic confident pose, [SUFIJO TÉCNICO]
+```
+**`skin-scooter-purple-slide`** — igual pero agachada/deslizando, mismo scooter púrpura.
+
+> `scooter-pink` (el color inicial) ya está cubierto por `player`/`player-slide`.
+
+---
+
+## 7) Tienda: íconos de artículos (64×64, estilo ícono plano)
+
+Estos son pequeños e independientes del personaje — no necesitan ser
+foto-realistas, solo claros y reconocibles a tamaño pequeño. Usa un estilo
+de **ícono plano con un toque de brillo/3D sutil**, fondo transparente,
+encuadre cuadrado, el objeto solo (sin texto).
+
+**Sufijo de ícono (añádelo a todos los de esta sección):**
+> flat icon style, single object centered, transparent background, no text,
+> no watermark, soft rim light, square framing, mobile game UI icon --ar 1:1
+
+| key → archivo | prompt |
+|---|---|
+| `acc-scooter-blue` → `acc-scooter-blue.png` | `a small electric-blue kick-scooter icon with turquoise wheels, [sufijo de ícono]` |
+| `acc-scooter-gold` → `acc-scooter-gold.png` | `a small shiny gold kick-scooter icon, [sufijo de ícono]` |
+| `acc-scooter-purple` → `acc-scooter-purple.png` | `a small deep purple kick-scooter icon with neon pink details, [sufijo de ícono]` |
+| `acc-wheels-neon` → `acc-wheels-neon.png` | `a scooter wheel icon glowing neon green, [sufijo de ícono]` |
+| `acc-wheels-fire` → `acc-wheels-fire.png` | `a scooter wheel icon with a fiery orange glow, [sufijo de ícono]` |
+| `acc-collar-red` → `acc-collar-red.png` | `a red dog collar icon with a small round tag, [sufijo de ícono]` |
+| `acc-hat-cap` → `acc-hat-cap.png` | `a sporty baseball cap icon in turquoise, [sufijo de ícono]` |
+| `acc-hat-crown` → `acc-hat-crown.png` | `a small golden crown icon with jewels, [sufijo de ícono]` |
+| `acc-glasses-cool` → `acc-glasses-cool.png` | `a pair of stylish black sunglasses icon, [sufijo de ícono]` |
+| `acc-lights-red` → `acc-lights-red.png` | `a scooter headlight icon glowing intense red, [sufijo de ícono]` |
+| `acc-lights-rainbow` → `acc-lights-rainbow.png` | `a scooter headlight icon glowing magical rainbow colors, [sufijo de ícono]` |
+| `acc-sticker-star` → `acc-sticker-star.png` | `a glossy golden star sticker icon, [sufijo de ícono]` |
+| `acc-sticker-heart` → `acc-sticker-heart.png` | `a glossy pink heart sticker icon, [sufijo de ícono]` |
+| `acc-trail-rainbow` → `acc-trail-rainbow.png` | `a swirl of colorful rainbow sparkle particles icon, [sufijo de ícono]` |
+| `acc-trail-flame` → `acc-trail-flame.png` | `a swirl of orange flame particles icon, [sufijo de ícono]` |
+
+---
+
 ## Recomendación de orden
 
 1. `player` y `player-slide` (lo que más se nota).
 2. `ob-car`, `ob-cone`, `ob-barrier-high`, `ob-barrier-low`, `coin`, `bone`.
-3. El resto de obstáculos y poderes.
-4. `bg-buildings` al final.
+3. Skins de scooter (`skin-scooter-*`) — se ven en cuanto las compras y equipas.
+4. Íconos de la tienda (`acc-*`) — mejoran las tarjetas y la franja de equipo del menú.
+5. El resto de obstáculos, poderes y `bg-buildings` al final.
 
 Empieza con 1-2, súbelos y verifica cómo se ven en el juego antes de generar el
 resto (así ajustas el estilo una sola vez).

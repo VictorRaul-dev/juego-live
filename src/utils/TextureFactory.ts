@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import type { ObstacleType, PowerUpType } from '../core/types';
+import type { ObstacleType, PowerUpType, ShopItem } from '../core/types';
+import { SHOP_ITEMS } from '../data/shopItems';
 
 /**
  * Draws every visual as an original, procedurally-generated texture at load
@@ -51,6 +52,10 @@ export class TextureFactory {
     TextureFactory.headlight(scene);
     TextureFactory.glow(scene);
     TextureFactory.buildingStrip(scene);
+
+    // One placeholder icon per shop item (`acc-<id>`), so shop cards and the
+    // equipped-loadout strip always have something to draw, real art or not.
+    SHOP_ITEMS.forEach((item) => TextureFactory.accessoryIcon(scene, item));
   }
 
   private static make(
@@ -482,5 +487,91 @@ export class TextureFactory {
         g.lineBetween(32, 32, 40, 34);
         break;
     }
+  }
+
+  /**
+   * Small round icon representing a shop item (`acc-<id>`), tinted to the
+   * item's colour with a category-specific silhouette. Used for shop preview
+   * cards and the equipped-loadout strip. Replace with real art by dropping a
+   * PNG at the same key — see ASSETS.md.
+   */
+  static accessoryIcon(scene: Phaser.Scene, item: ShopItem): void {
+    const key = `acc-${item.id}`;
+    const color = item.tint ?? 0xffffff;
+    TextureFactory.make(scene, key, 64, 64, (g) => {
+      g.fillStyle(0xffffff, 0.15);
+      g.fillCircle(32, 32, 30);
+      g.fillStyle(color, 1);
+      g.fillCircle(32, 32, 25);
+      g.fillStyle(0xffffff, 1);
+      TextureFactory.accessorySilhouette(g, item.category);
+    });
+  }
+
+  private static accessorySilhouette(
+    g: Phaser.GameObjects.Graphics,
+    category: ShopItem['category'],
+  ): void {
+    switch (category) {
+      case 'scooter':
+        g.fillRoundedRect(16, 40, 26, 6, 3);
+        g.fillRect(40, 18, 4, 24);
+        g.fillRoundedRect(36, 14, 14, 4, 2);
+        g.fillCircle(23, 46, 5);
+        g.fillCircle(41, 46, 5);
+        break;
+      case 'collar':
+        g.fillRoundedRect(16, 28, 32, 9, 4);
+        g.fillCircle(32, 32, 4);
+        break;
+      case 'hat':
+        g.fillEllipse(32, 36, 30, 10);
+        g.fillRoundedRect(19, 18, 26, 20, 9);
+        break;
+      case 'glasses':
+        g.fillCircle(21, 32, 9);
+        g.fillCircle(43, 32, 9);
+        g.fillRect(28, 29, 8, 5);
+        break;
+      case 'wheels':
+        g.fillCircle(32, 32, 15);
+        g.fillStyle(0x000000, 0.35);
+        g.fillCircle(32, 32, 6);
+        break;
+      case 'lights':
+        g.fillTriangle(32, 14, 18, 46, 46, 46);
+        g.fillStyle(0xffffff, 0.5);
+        g.fillCircle(32, 20, 7);
+        break;
+      case 'sticker':
+        TextureFactory.star(g, 32, 32, 5, 16, 7);
+        break;
+      case 'trail':
+        g.fillCircle(22, 42, 6);
+        g.fillCircle(33, 30, 8);
+        g.fillCircle(46, 18, 10);
+        break;
+    }
+  }
+
+  /** Draws a filled 5-pointed star centred at (cx, cy). */
+  private static star(
+    g: Phaser.GameObjects.Graphics,
+    cx: number,
+    cy: number,
+    spikes: number,
+    outerR: number,
+    innerR: number,
+  ): void {
+    const points: Phaser.Geom.Point[] = [];
+    const step = Math.PI / spikes;
+    let rot = -Math.PI / 2;
+    for (let i = 0; i < spikes; i++) {
+      points.push(new Phaser.Geom.Point(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR));
+      rot += step;
+      points.push(new Phaser.Geom.Point(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR));
+      rot += step;
+    }
+    g.fillPoints(points, true);
   }
 }

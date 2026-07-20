@@ -84,6 +84,53 @@ cámara" (como en las miniaturas de la referencia), con **fondo transparente**.
 |-----|---------|--------|-------------|
 | `bg-buildings` | `buildings.png` | 1080×300 | Tira de edificios **repetible horizontalmente** (silueta), fondo transparente. Se usa en dos capas con parallax. |
 
+### Tienda: skins del scooter y accesorios
+
+Cada compra de la tienda se **refleja automáticamente en el juego** (menú y
+partida) en cuanto la equipas, incluso sin arte real:
+
+- **Sin imagen**: el color del artículo (`tint`) recolorea la textura base de
+  VACA (para scooters), el faro (para luces) o genera una estela de partículas
+  (para estelas) — funciona ya, hoy, sin generar nada.
+- **Con imagen real**: si añades el PNG con la clave correspondiente, la
+  reemplaza automáticamente y se ve con fidelidad total.
+
+**Skins completas de scooter** (personaje entero, mismo criterio que `player`):
+
+| key (idle) | key (deslizando) | artículo | tamaño |
+|---|---|---|---|
+| `skin-scooter-blue` | `skin-scooter-blue-slide` | Scooter Azul | 512×640 / 512×512 |
+| `skin-scooter-gold` | `skin-scooter-gold-slide` | Scooter Dorado | 512×640 / 512×512 |
+| `skin-scooter-purple` | `skin-scooter-purple-slide` | Scooter Púrpura | 512×640 / 512×512 |
+
+> `scooter-pink` (el inicial) ya usa `player`/`player-slide` — no necesita skin
+> propia. El nombre de archivo sigue la clave: `skin-scooter-blue.png`, etc.
+
+**Íconos de artículos** (tienda + franja de equipo en el menú), 64×64 px,
+fondo transparente, estilo ícono plano simple (no hace falta foto-realismo):
+
+| key | archivo | artículo |
+|---|---|---|
+| `acc-scooter-blue` | `acc-scooter-blue.png` | Scooter Azul |
+| `acc-scooter-gold` | `acc-scooter-gold.png` | Scooter Dorado |
+| `acc-scooter-purple` | `acc-scooter-purple.png` | Scooter Púrpura |
+| `acc-wheels-neon` | `acc-wheels-neon.png` | Ruedas Neón |
+| `acc-wheels-fire` | `acc-wheels-fire.png` | Ruedas de Fuego |
+| `acc-collar-red` | `acc-collar-red.png` | Collar Rojo |
+| `acc-hat-cap` | `acc-hat-cap.png` | Gorra Deportiva |
+| `acc-hat-crown` | `acc-hat-crown.png` | Corona |
+| `acc-glasses-cool` | `acc-glasses-cool.png` | Gafas de Sol |
+| `acc-lights-red` | `acc-lights-red.png` | Luz Roja |
+| `acc-lights-rainbow` | `acc-lights-rainbow.png` | Luz Arcoíris |
+| `acc-sticker-star` | `acc-sticker-star.png` | Pegatina Estrella |
+| `acc-sticker-heart` | `acc-sticker-heart.png` | Pegatina Corazón |
+| `acc-trail-rainbow` | `acc-trail-rainbow.png` | Estela Arcoíris |
+| `acc-trail-flame` | `acc-trail-flame.png` | Estela de Fuego |
+
+> Convención general: `acc-<id-del-artículo>.png` para cualquier artículo de
+> `src/data/shopItems.ts` (el `id` está en ese archivo). Si añades un artículo
+> nuevo a la tienda, su ícono sigue la misma regla automáticamente.
+
 ---
 
 ## Notas

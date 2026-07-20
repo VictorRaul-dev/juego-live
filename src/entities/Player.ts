@@ -7,11 +7,18 @@ import {
   PLAYER_Y,
   SLIDE_MS,
 } from '../config/GameConfig';
+import type { GameState } from '../core/GameState';
+import { resolveLoadout, scooterSkinKey, scooterSkinSlideKey } from '../systems/Cosmetics';
 
 /**
  * VACA the dog on her scooter. Owns lane position, jump/slide state and the
  * little idle animations (ear/tail wiggle via a bob tween). Collision is
  * resolved by GameScene using {@link getHitBox} plus the airborne/sliding flags.
+ *
+ * Appearance reflects the player's shop purchases: the equipped scooter uses
+ * a dedicated full-body skin texture when one has been dropped into
+ * public/assets/images/ (see ASSETS.md), or falls back to recolouring the
+ * base art with the item's tint so every purchase is visible immediately.
  */
 export class Player extends Phaser.GameObjects.Container {
   /** Target on-screen height so any source image renders at a consistent size. */
@@ -25,19 +32,45 @@ export class Player extends Phaser.GameObjects.Container {
   private shieldBubble: Phaser.GameObjects.Image;
   private baseY: number;
   private baseScale = 1;
+  private idleTextureKey: string;
+  private slideTextureKey: string;
+  private equippedTint: number | null = null;
   private laneTween?: Phaser.Tweens.Tween;
   private jumpTween?: Phaser.Tweens.Tween;
   private slideTimer?: Phaser.Time.TimerEvent;
   private bobTween?: Phaser.Tweens.Tween;
 
-  constructor(scene: Phaser.Scene, _scooterTint: number) {
+  /** Colour for the scene's headlight beam, resolved from the equipped light. */
+  readonly headlightTint: number;
+  /** Colour for the particle trail, or undefined when no trail is equipped. */
+  readonly trailTint?: number;
+
+  constructor(scene: Phaser.Scene, gs: GameState) {
     super(scene, LANE_X[1], PLAYER_Y);
     this.baseY = PLAYER_Y;
 
-    this.sprite = scene.add.sprite(0, 0, 'player').setOrigin(0.5, 0.85);
+    const loadout = resolveLoadout(gs.save.equippedItems);
+    const scooterId = loadout.scooter?.id ?? 'scooter-pink';
+    const idleSkin = scooterSkinKey(scooterId);
+    const slideSkin = scooterSkinSlideKey(scooterId);
+    const hasCustomSkin = scene.textures.exists(idleSkin);
+    this.idleTextureKey = hasCustomSkin ? idleSkin : 'player';
+    this.slideTextureKey = scene.textures.exists(slideSkin) ? slideSkin : 'player-slide';
+
+    this.sprite = scene.add.sprite(0, 0, this.idleTextureKey).setOrigin(0.5, 0.85);
     // Normalise the sprite to a consistent height regardless of source art size.
     this.baseScale = Player.TARGET_HEIGHT / (this.sprite.height || Player.TARGET_HEIGHT);
     this.sprite.setScale(this.baseScale);
+
+    // Recolour the base art when no dedicated skin image exists yet. Once a
+    // real `skin-<id>.png` is added the custom texture wins and this is skipped.
+    if (!hasCustomSkin && loadout.scooter?.tint && scooterId !== 'scooter-pink') {
+      this.equippedTint = loadout.scooter.tint;
+      this.sprite.setTint(this.equippedTint);
+    }
+
+    this.headlightTint = loadout.lights?.tint ?? 0xfff4c8;
+    this.trailTint = loadout.trail?.tint;
 
     this.shieldBubble = scene.add
       .image(0, -40, 'shield-bubble')
@@ -57,10 +90,6 @@ export class Player extends Phaser.GameObjects.Container {
       repeat: -1,
       ease: 'Sine.inOut',
     });
-  }
-
-  setScooterTint(_tint: number): void {
-    // No-op with real/placeholder full-character art (kept for API compatibility).
   }
 
   showShield(on: boolean): void {
@@ -117,12 +146,12 @@ export class Player extends Phaser.GameObjects.Container {
   slide(): boolean {
     if (this.isSliding || this.isJumping) return false;
     this.isSliding = true;
-    this.sprite.setTexture('player-slide');
+    this.sprite.setTexture(this.slideTextureKey);
     const s = Player.TARGET_HEIGHT / (this.sprite.height || Player.TARGET_HEIGHT);
     this.sprite.setScale(s, s * 0.85);
     this.slideTimer = this.scene.time.delayedCall(SLIDE_MS, () => {
       this.isSliding = false;
-      this.sprite.setTexture('player');
+      this.sprite.setTexture(this.idleTextureKey);
       this.sprite.setScale(this.baseScale);
     });
     return true;
@@ -149,7 +178,10 @@ export class Player extends Phaser.GameObjects.Container {
       repeat: 3,
     });
     this.sprite.setTint(0xff8888);
-    this.scene.time.delayedCall(400, () => this.sprite.clearTint());
+    this.scene.time.delayedCall(400, () => {
+      if (this.equippedTint !== null) this.sprite.setTint(this.equippedTint);
+      else this.sprite.clearTint();
+    });
   }
 
   celebrate(): void {

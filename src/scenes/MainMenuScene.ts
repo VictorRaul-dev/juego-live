@@ -5,6 +5,7 @@ import { drawCurrencyChips, drawMenuBackground } from '../ui/Background';
 import { GameState } from '../core/GameState';
 import { AudioManager } from '../managers/AudioManager';
 import { t } from '../core/i18n';
+import { accessoryIconKey, equippedItemIds, resolveLoadout, scooterSkinKey } from '../systems/Cosmetics';
 
 export class MainMenuScene extends Phaser.Scene {
   constructor() {
@@ -38,9 +39,17 @@ export class MainMenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // Idle VACA — normalise to a fixed height so any source image fits.
-    const hero = this.add.image(GAME_WIDTH / 2, 630, 'player');
+    // Idle VACA — reflects the equipped scooter skin/tint from the shop, and
+    // normalises to a fixed height so any source image fits.
+    const loadout = resolveLoadout(gs.save.equippedItems);
+    const scooterId = loadout.scooter?.id ?? 'scooter-pink';
+    const skinKey = scooterSkinKey(scooterId);
+    const heroTexture = this.textures.exists(skinKey) ? skinKey : 'player';
+    const hero = this.add.image(GAME_WIDTH / 2, 630, heroTexture);
     hero.setScale(300 / (hero.height || 300));
+    if (heroTexture === 'player' && loadout.scooter?.tint && scooterId !== 'scooter-pink') {
+      hero.setTint(loadout.scooter.tint);
+    }
     this.tweens.add({
       targets: hero,
       y: 614,
@@ -59,6 +68,20 @@ export class MainMenuScene extends Phaser.Scene {
         color: '#ffcc33',
       })
       .setOrigin(0.5);
+
+    // Equipped-loadout strip: a small icon per purchased item currently
+    // equipped, so shop purchases are visible right on the menu.
+    const equippedIds = equippedItemIds(gs.save.equippedItems);
+    if (equippedIds.length > 0) {
+      const spacing = 58;
+      const startX = GAME_WIDTH / 2 - ((equippedIds.length - 1) * spacing) / 2;
+      equippedIds.forEach((id, i) => {
+        const key = accessoryIconKey(id);
+        if (this.textures.exists(key)) {
+          this.add.image(startX + i * spacing, 890, key).setDisplaySize(48, 48);
+        }
+      });
+    }
 
     const click = () => audio.play('button');
 

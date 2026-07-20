@@ -111,6 +111,55 @@ export const SHOP_ITEMS: ShopItem[] = [
     description: 'Gafas de sol con mucho estilo.',
   },
 
+  // Lights (headlight beam colour)
+  {
+    id: 'lights-white',
+    name: 'Luz Blanca',
+    category: 'lights',
+    currency: 'coins',
+    price: 0,
+    tint: 0xfff4c8,
+    description: 'El faro clásico y cálido de VACA.',
+  },
+  {
+    id: 'lights-red',
+    name: 'Luz Roja',
+    category: 'lights',
+    currency: 'coins',
+    price: 200,
+    tint: 0xff3b3b,
+    description: 'Un faro rojo intenso para conducir de noche.',
+  },
+  {
+    id: 'lights-rainbow',
+    name: 'Luz Arcoíris',
+    category: 'lights',
+    currency: 'bones',
+    price: 30,
+    tint: 0x9b6bff,
+    description: 'Un faro con un brillo mágico multicolor.',
+  },
+
+  // Stickers (scooter deck decoration)
+  {
+    id: 'sticker-star',
+    name: 'Pegatina Estrella',
+    category: 'sticker',
+    currency: 'coins',
+    price: 150,
+    tint: 0xffcc33,
+    description: 'Una estrella brillante para presumir.',
+  },
+  {
+    id: 'sticker-heart',
+    name: 'Pegatina Corazón',
+    category: 'sticker',
+    currency: 'bones',
+    price: 20,
+    tint: 0xff5db1,
+    description: 'Un corazón rosado de la suerte.',
+  },
+
   // Trails
   {
     id: 'trail-rainbow',
@@ -121,11 +170,21 @@ export const SHOP_ITEMS: ShopItem[] = [
     tint: 0xff5db1,
     description: 'Deja un rastro de colores brillantes.',
   },
+  {
+    id: 'trail-flame',
+    name: 'Estela de Fuego',
+    category: 'trail',
+    currency: 'coins',
+    price: 450,
+    tint: 0xff6a00,
+    description: 'Deja una estela ardiente a tu paso.',
+  },
 ];
 
 /** Items granted for free from the start. */
-export const DEFAULT_OWNED = ['scooter-pink', 'collar-purple'];
+export const DEFAULT_OWNED = ['scooter-pink', 'collar-purple', 'lights-white'];
 export const DEFAULT_EQUIPPED = {
   scooter: 'scooter-pink',
   collar: 'collar-purple',
+  lights: 'lights-white',
 } as const;
