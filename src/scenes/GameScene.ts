@@ -147,7 +147,8 @@ export class GameScene extends Phaser.Scene {
     this.buildHud();
     this.buildInput();
 
-    // Speed upgrade grants a small head-start on control (starts a touch faster).
+    // Start-of-run fanfare, then the dynamic music loop.
+    this.audio.play('start');
     this.audio.startMusic();
 
     // Pre-fill a couple of screens of track.

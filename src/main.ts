@@ -53,6 +53,22 @@ game.events.once(Phaser.Core.Events.READY, () => {
   splash?.remove();
 });
 
+// Unlock the Web Audio context on the first real user gesture. This lives on
+// the window (not a scene) so it survives scene transitions — the first tap on
+// the menu reliably enables all sound, respecting browser autoplay policies.
+function unlockAudio(): void {
+  const audio = game.registry.get('audio') as { unlock(): void; ready: boolean } | undefined;
+  audio?.unlock();
+  if (audio?.ready) {
+    ['pointerdown', 'touchstart', 'keydown'].forEach((ev) =>
+      window.removeEventListener(ev, unlockAudio),
+    );
+  }
+}
+['pointerdown', 'touchstart', 'keydown'].forEach((ev) =>
+  window.addEventListener(ev, unlockAudio, { passive: true }),
+);
+
 // Pause the game automatically when the tab loses focus (accessibility + battery).
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) return;

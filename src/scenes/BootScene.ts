@@ -21,11 +21,8 @@ export class BootScene extends Phaser.Scene {
     this.registry.set('gameState', gameState);
     this.registry.set('audio', audio);
 
-    // Unlock audio on the first user interaction anywhere in the game.
-    this.input.once(Phaser.Input.Events.POINTER_DOWN, () => audio.unlock());
-    if (this.input.keyboard) {
-      this.input.keyboard.once('keydown', () => audio.unlock());
-    }
+    // Audio is unlocked by a window-level gesture listener in main.ts (it must
+    // survive scene transitions, so it can't live on this short-lived scene).
 
     this.scene.start('PreloadScene');
   }

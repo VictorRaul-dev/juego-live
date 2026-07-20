@@ -9,7 +9,8 @@ type SfxName =
   | 'power'
   | 'hit'
   | 'record'
-  | 'button';
+  | 'button'
+  | 'start';
 
 /**
  * Web Audio synthesiser. All sounds are generated at runtime, so the game ships
@@ -32,6 +33,11 @@ export class AudioManager {
 
   constructor(settings: Settings) {
     this.settings = settings;
+  }
+
+  /** True once the AudioContext exists (after the first user gesture). */
+  get ready(): boolean {
+    return this.started;
   }
 
   /** Must be called from within a user-gesture handler. */
@@ -135,6 +141,13 @@ export class AudioManager {
         break;
       case 'button':
         this.tone(440, 0.05, 'square', this.sfxGain, 0.3);
+        break;
+      case 'start':
+        // Upbeat "3-2-1-go" style fanfare when a run begins.
+        this.tone(392, 0.12, 'triangle', this.sfxGain, 0.5);
+        this.tone(523, 0.12, 'triangle', this.sfxGain, 0.5, 0.12);
+        this.tone(784, 0.28, 'triangle', this.sfxGain, 0.6, 0.24);
+        this.sweep(200, 700, 0.3, 'sawtooth', 0.3);
         break;
     }
   }
